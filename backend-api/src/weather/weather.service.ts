@@ -1,26 +1,23 @@
 import { Injectable } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
 import { CreateWeatherDto } from './dto/create-weather.dto';
-import { UpdateWeatherDto } from './dto/update-weather.dto';
+import { Weather, WeatherDocument } from './entities/weather.entity';
 
 @Injectable()
 export class WeatherService {
-  create(createWeatherDto: CreateWeatherDto) {
-    return 'This action adds a new weather';
+  // Injeção de Dependência do Modelo Mongoose
+  constructor(
+    @InjectModel(Weather.name) private weatherModel: Model<WeatherDocument>,
+  ) {}
+
+  async create(createWeatherDto: CreateWeatherDto) {
+    const createdWeather = new this.weatherModel(createWeatherDto);
+    return createdWeather.save();
   }
 
-  findAll() {
-    return `This action returns all weather`;
-  }
-
-  findOne(id: number) {
-    return `This action returns a #${id} weather`;
-  }
-
-  update(id: number, updateWeatherDto: UpdateWeatherDto) {
-    return `This action updates a #${id} weather`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} weather`;
+  async findAll() {
+    // Busca os últimos 100 registros, ordenados do mais novo para o mais velho
+    return this.weatherModel.find().sort({ createdAt: -1 }).limit(100).exec();
   }
 }

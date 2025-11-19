@@ -1,14 +1,18 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"log"
-	"time"
+	"net/http"
+	
 
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-// WeatherData define a estrutura do JSON que vem do Python
+// URL da API NestJS (rodando localmente)
+const API_URL = "http://localhost:3000/weather"
+
 type WeatherData struct {
 	Timestamp   string  `json:"timestamp"`
 	Latitude    float64 `json:"latitude"`
@@ -24,67 +28,79 @@ func failOnError(err error, msg string) {
 	}
 }
 
+// Função para enviar os dados para o NestJS
+func sendToAPI(data WeatherData) error {
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return err
+	}
+
+	// Criar o request POST
+	resp, err := http.Post(API_URL, "application/json", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == 200 || resp.StatusCode == 201 {
+		log.Printf("📤 Enviado para API com sucesso! (Status: %d)", resp.StatusCode)
+		return nil
+	} else {
+		log.Printf("⚠️ Erro na API: Status %d", resp.StatusCode)
+		return  nil // Retornamos nil para não travar a fila, mas idealmente trataríamos o erro
+	}
+}
+
 func main() {
-	// 1. Conectar ao RabbitMQ (localhost pois estamos rodando fora do docker agora)
+	// Conectar ao RabbitMQ
 	conn, err := amqp.Dial("amqp://admin:admin123@localhost:5672/")
 	failOnError(err, "Falha ao conectar ao RabbitMQ")
 	defer conn.Close()
 
-	// 2. Abrir canal
 	ch, err := conn.Channel()
 	failOnError(err, "Falha ao abrir um canal")
 	defer ch.Close()
 
-	// 3. Declarar a fila (garantir que ela existe)
 	q, err := ch.QueueDeclare(
-		"weather_queue", // nome
-		true,            // durable
-		false,           // delete when unused
-		false,           // exclusive
-		false,           // no-wait
-		nil,             // arguments
+		"weather_queue", true, false, false, false, nil,
 	)
 	failOnError(err, "Falha ao declarar a fila")
 
-	// 4. Consumir mensagens
 	msgs, err := ch.Consume(
-		q.Name, // queue
-		"",     // consumer
-		false,  // auto-ack (false = vamos confirmar manualmente)
-		false,  // exclusive
-		false,  // no-local
-		false,  // no-wait
-		nil,    // args
+		q.Name, "", false, false, false, false, nil,
 	)
 	failOnError(err, "Falha ao registrar consumidor")
 
-	// 5. Loop de leitura
 	forever := make(chan struct{})
 
 	go func() {
 		for d := range msgs {
-			// Desserializar JSON (Parse)
 			var data WeatherData
 			err := json.Unmarshal(d.Body, &data)
 			
 			if err != nil {
-				log.Printf("Erro ao ler JSON: %s", err)
-				d.Nack(false, false) // Rejeita se o JSON estiver quebrado
+				log.Printf("Erro no JSON: %s", err)
+				d.Nack(false, false)
 				continue
 			}
 
-			// MOSTRAR NO TERMINAL (AQUI ESTÁ A MÁGICA)
-			log.Printf("✅ [Go Worker] Recebido: Temp: %.1f°C | Umid: %.1f%% | Vento: %.1f km/h", 
-				data.Temperature, data.Humidity, data.WindSpeed)
+			log.Printf("✅ Recebido da Fila: Temp %.1f°C", data.Temperature)
 
-			// Simular processamento
-			time.Sleep(500 * time.Millisecond) 
-
-			// Confirmar recebimento (Ack)
-			d.Ack(false)
+			// ENVIAR PARA A API NESTJS
+			err = sendToAPI(data)
+			
+			if err != nil {
+				log.Printf("❌ Falha ao enviar para API: %s", err)
+				// Se a API estiver fora, devolvemos a mensagem para a fila (Nack com requeue)
+				// time.Sleep(5 * time.Second) // Espera um pouco para não flodar
+				d.Nack(false, true) 
+			} else {
+				// Sucesso: Confirmamos a mensagem
+				d.Ack(false)
+			}
 		}
 	}()
 
-	log.Printf(" [*] Aguardando mensagens. Para sair pressione CTRL+C")
+	log.Printf(" [*] Worker Go rodando... Aguardando mensagens.")
 	<-forever
 }
