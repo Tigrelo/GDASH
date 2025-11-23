@@ -1,12 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import { Parser } from 'json2csv';
 import { CreateWeatherDto } from './dto/create-weather.dto';
 import { Weather, WeatherDocument } from './entities/weather.entity';
 
 @Injectable()
 export class WeatherService {
-  // Injeção de Dependência do Modelo Mongoose
   constructor(
     @InjectModel(Weather.name) private weatherModel: Model<WeatherDocument>,
   ) {}
@@ -17,7 +17,26 @@ export class WeatherService {
   }
 
   async findAll() {
-    // Busca os últimos 100 registros, ordenados do mais novo para o mais velho
     return this.weatherModel.find().sort({ createdAt: -1 }).limit(100).exec();
+  }
+
+  async exportToCsv() {
+    // Usamos 'any' aqui para o TypeScript não reclamar da tipagem do Mongoose vs json2csv
+    const data: any = await this.weatherModel
+      .find()
+      .sort({ createdAt: -1 })
+      .limit(500)
+      .exec();
+    const fields = ['timestamp', 'temperature', 'humidity', 'windSpeed'];
+    const opts = { fields };
+
+    try {
+      // O 'any' no Parser evita erros de lint sobre construtor inseguro
+      const parser = new Parser(opts);
+      return parser.parse(data);
+    } catch (err) {
+      console.error(err); // Usamos o erro para não dar aviso de 'unused variable'
+      throw new Error('Erro ao gerar CSV');
+    }
   }
 }
