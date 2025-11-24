@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	
 
 	amqp "github.com/rabbitmq/amqp091-go"
 )
@@ -19,7 +18,7 @@ type WeatherData struct {
 	Longitude   float64 `json:"longitude"`
 	Temperature float64 `json:"temperature"`
 	Humidity    float64 `json:"humidity"`
-	WindSpeed   float64 `json:"wind_speed"`
+	WindSpeed   float64 `json:"windSpeed"` // <--- CORRIGIDO: Agora usa camelCase
 }
 
 func failOnError(err error, msg string) {
@@ -47,7 +46,7 @@ func sendToAPI(data WeatherData) error {
 		return nil
 	} else {
 		log.Printf("⚠️ Erro na API: Status %d", resp.StatusCode)
-		return  nil // Retornamos nil para não travar a fila, mas idealmente trataríamos o erro
+		return nil
 	}
 }
 
@@ -77,23 +76,21 @@ func main() {
 		for d := range msgs {
 			var data WeatherData
 			err := json.Unmarshal(d.Body, &data)
-			
+
 			if err != nil {
 				log.Printf("Erro no JSON: %s", err)
 				d.Nack(false, false)
 				continue
 			}
 
-			log.Printf("✅ Recebido da Fila: Temp %.1f°C", data.Temperature)
+			log.Printf("✅ Recebido da Fila: Temp %.1f°C | Vento: %.1f km/h", data.Temperature, data.WindSpeed)
 
 			// ENVIAR PARA A API NESTJS
 			err = sendToAPI(data)
-			
+
 			if err != nil {
 				log.Printf("❌ Falha ao enviar para API: %s", err)
-				// Se a API estiver fora, devolvemos a mensagem para a fila (Nack com requeue)
-				// time.Sleep(5 * time.Second) // Espera um pouco para não flodar
-				d.Nack(false, true) 
+				d.Nack(false, true)
 			} else {
 				// Sucesso: Confirmamos a mensagem
 				d.Ack(false)

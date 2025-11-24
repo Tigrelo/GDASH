@@ -9,6 +9,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { Login } from "@/components/Login"; 
 
 interface WeatherData {
   _id: string;
@@ -19,13 +20,29 @@ interface WeatherData {
 }
 
 function App() {
+  // Tenta recuperar o token se já estiver salvo
+  const [token, setToken] = useState<string | null>(
+    localStorage.getItem("gdash_token")
+  );
   const [weatherList, setWeatherList] = useState<WeatherData[]>([]);
-  const [loading, setLoading] = useState(true); // Agora vamos usar esta variável
+  const [loading, setLoading] = useState(true);
 
-  // Usando useCallback para garantir estabilidade da função
+  // Função chamada quando o Login dá certo
+  const handleLoginSuccess = (newToken: string) => {
+    localStorage.setItem("gdash_token", newToken);
+    setToken(newToken);
+  };
+
+  // Função de Logout
+  const handleLogout = () => {
+    localStorage.removeItem("gdash_token");
+    setToken(null);
+  };
+
   const fetchData = useCallback(async () => {
+    if (!token) return;
+
     try {
-      // setLoading(true); // Opcional: ativar loading a cada refresh
       const response = await fetch("http://localhost:3000/weather");
       const data = await response.json();
       setWeatherList(data);
@@ -34,54 +51,68 @@ function App() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [token]);
 
   useEffect(() => {
-    // Chamada inicial
-    fetchData();
-
-    // Configurar intervalo
-    const interval = setInterval(() => {
+    if (token) {
       fetchData();
-    }, 10000);
-
-    // Limpar intervalo ao sair
-    return () => clearInterval(interval);
-  }, [fetchData]);
+      const interval = setInterval(fetchData, 10000);
+      return () => clearInterval(interval);
+    }
+  }, [fetchData, token]);
 
   const current = weatherList[0];
 
-  // TELA DE CARREGAMENTO (Para usar a variável loading)
+  // --- AQUI ESTÁ A MÁGICA ---
+  // Se não tiver token, mostra a tela de Login em vez do Dashboard
+  if (!token) {
+    return <Login onLoginSuccess={handleLoginSuccess} />;
+  }
+
+  // TELA DE CARREGAMENTO
   if (loading && weatherList.length === 0) {
     return (
       <div className="min-h-screen bg-zinc-950 flex items-center justify-center text-zinc-100">
-        <div className="text-xl animate-pulse">
-          Carregando dados do clima... 🌤️
-        </div>
+        <div className="text-xl animate-pulse">Carregando dados... 🌤️</div>
       </div>
     );
   }
 
+  // DASHBOARD
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 p-8">
       <div className="max-w-6xl mx-auto space-y-8">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold text-white">Meu Tempo 🌤️</h1>
-            <p className="text-zinc-400">
-              Monitoramento em tempo real de Belo Horizonte
-            </p>
+            <h1 className="text-3xl font-bold text-white">GDASH Weather 🌤️</h1>
+            <p className="text-zinc-400">Monitoramento Seguro (Admin)</p>
           </div>
-          <Button
-            onClick={fetchData}
-            variant="outline"
-            className="text-black bg-white hover:bg-zinc-200"
-          >
-            Atualizar Agora
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              onClick={fetchData}
+              variant="outline"
+              className="text-black bg-white hover:bg-zinc-200"
+            >
+              Atualizar
+            </Button>
+
+            {/* BOTÃO DE CSV */}
+            <Button
+              onClick={() =>
+                window.open("http://localhost:3000/weather/export", "_blank")
+              }
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              CSV 📥
+            </Button>
+
+            {/* BOTÃO DE SAIR */}
+            <Button onClick={handleLogout} variant="destructive">
+              Sair 🚪
+            </Button>
+          </div>
         </div>
 
-        {/* Se não tiver dados (mas já carregou), evita erro */}
         {!current ? (
           <div className="text-center text-zinc-500">
             Nenhum dado encontrado. Verifique se o Backend está rodando.
@@ -98,7 +129,6 @@ function App() {
                 <div className="text-4xl font-bold">
                   {current.temperature.toFixed(1)}°C
                 </div>
-                <p className="text-xs text-zinc-500 mt-1">Temperatura Atual</p>
               </CardContent>
             </Card>
 
@@ -112,7 +142,6 @@ function App() {
                 <div className="text-4xl font-bold text-blue-400">
                   {current.humidity}%
                 </div>
-                <p className="text-xs text-zinc-500 mt-1">Umidade Relativa</p>
               </CardContent>
             </Card>
 
@@ -126,7 +155,6 @@ function App() {
                 <div className="text-4xl font-bold text-green-400">
                   {current.windSpeed} km/h
                 </div>
-                <p className="text-xs text-zinc-500 mt-1">Velocidade</p>
               </CardContent>
             </Card>
           </div>
