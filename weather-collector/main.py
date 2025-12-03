@@ -2,11 +2,12 @@ import pika
 import requests
 import json
 import time
+import os
 from datetime import datetime
 
 # --- Configurações ---
-# Como estamos rodando localmente (fora do container), usamos localhost
-RABBIT_HOST = 'localhost'
+
+RABBIT_HOST = os.getenv('RABBIT_HOST', 'localhost')
 RABBIT_USER = 'admin'
 RABBIT_PASS = 'admin123'
 QUEUE_NAME = 'weather_queue'
@@ -27,7 +28,7 @@ def get_weather():
                 "longitude": data.get('longitude'),
                 "temperature": current.get('temperature_2m'),
                 "humidity": current.get('relative_humidity_2m'),
-                "wind_speed": current.get('wind_speed_10m')
+                "windSpeed": current.get('wind_speed_10m') 
             }
             return payload
         else:

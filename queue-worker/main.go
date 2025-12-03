@@ -1,21 +1,30 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"log"
-	"time"
+	"net/http"
+	"os" 
 
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-// WeatherData define a estrutura do JSON que vem do Python
 type WeatherData struct {
 	Timestamp   string  `json:"timestamp"`
 	Latitude    float64 `json:"latitude"`
 	Longitude   float64 `json:"longitude"`
 	Temperature float64 `json:"temperature"`
 	Humidity    float64 `json:"humidity"`
-	WindSpeed   float64 `json:"wind_speed"`
+	WindSpeed   float64 `json:"windSpeed"`
+}
+
+// Função auxiliar para ler configuração (Docker ou Local)
+func getEnv(key, fallback string) string {
+	if value, ok := os.LookupEnv(key); ok {
+		return value
+	}
+	return fallback
 }
 
 func failOnError(err error, msg string) {
@@ -24,67 +33,80 @@ func failOnError(err error, msg string) {
 	}
 }
 
+func sendToAPI(data WeatherData) error {
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return err
+	}
+
+	// Pega a URL da variável de ambiente ou usa localhost
+	apiURL := getEnv("API_URL", "http://localhost:3000/weather")
+
+	resp, err := http.Post(apiURL, "application/json", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == 200 || resp.StatusCode == 201 {
+		log.Printf("📤 Enviado para API: %s (Status: %d)", apiURL, resp.StatusCode)
+		return nil
+	} else {
+		log.Printf("⚠️ Erro na API: Status %d", resp.StatusCode)
+		return nil
+	}
+}
+
 func main() {
-	// 1. Conectar ao RabbitMQ (localhost pois estamos rodando fora do docker agora)
-	conn, err := amqp.Dial("amqp://admin:admin123@localhost:5672/")
+	// Pega a URL do RabbitMQ da variável ou usa localhost
+	rabbitURL := getEnv("RABBITMQ_URL", "amqp://admin:admin123@localhost:5672/")
+
+	conn, err := amqp.Dial(rabbitURL)
 	failOnError(err, "Falha ao conectar ao RabbitMQ")
 	defer conn.Close()
 
-	// 2. Abrir canal
+	log.Printf("🔗 Conectado ao RabbitMQ em: %s", rabbitURL)
+
 	ch, err := conn.Channel()
 	failOnError(err, "Falha ao abrir um canal")
 	defer ch.Close()
 
-	// 3. Declarar a fila (garantir que ela existe)
 	q, err := ch.QueueDeclare(
-		"weather_queue", // nome
-		true,            // durable
-		false,           // delete when unused
-		false,           // exclusive
-		false,           // no-wait
-		nil,             // arguments
+		"weather_queue", true, false, false, false, nil,
 	)
 	failOnError(err, "Falha ao declarar a fila")
 
-	// 4. Consumir mensagens
 	msgs, err := ch.Consume(
-		q.Name, // queue
-		"",     // consumer
-		false,  // auto-ack (false = vamos confirmar manualmente)
-		false,  // exclusive
-		false,  // no-local
-		false,  // no-wait
-		nil,    // args
+		q.Name, "", false, false, false, false, nil,
 	)
 	failOnError(err, "Falha ao registrar consumidor")
 
-	// 5. Loop de leitura
 	forever := make(chan struct{})
 
 	go func() {
 		for d := range msgs {
-			// Desserializar JSON (Parse)
 			var data WeatherData
 			err := json.Unmarshal(d.Body, &data)
 			
 			if err != nil {
-				log.Printf("Erro ao ler JSON: %s", err)
-				d.Nack(false, false) // Rejeita se o JSON estiver quebrado
+				log.Printf("Erro no JSON: %s", err)
+				d.Nack(false, false)
 				continue
 			}
 
-			// MOSTRAR NO TERMINAL (AQUI ESTÁ A MÁGICA)
-			log.Printf("✅ [Go Worker] Recebido: Temp: %.1f°C | Umid: %.1f%% | Vento: %.1f km/h", 
-				data.Temperature, data.Humidity, data.WindSpeed)
+			log.Printf("✅ Recebido: Temp %.1f°C | Vento: %.1f km/h", data.Temperature, data.WindSpeed)
 
-			// Simular processamento
-			time.Sleep(500 * time.Millisecond) 
-
-			// Confirmar recebimento (Ack)
-			d.Ack(false)
+			err = sendToAPI(data)
+			
+			if err != nil {
+				log.Printf("❌ Falha ao enviar: %s", err)
+				d.Nack(false, true) 
+			} else {
+				d.Ack(false)
+			}
 		}
 	}()
 
-	log.Printf(" [*] Aguardando mensagens. Para sair pressione CTRL+C")
+	log.Printf(" [*] Worker Go rodando... Aguardando mensagens.")
 	<-forever
 }

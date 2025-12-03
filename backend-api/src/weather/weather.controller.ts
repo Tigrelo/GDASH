@@ -1,7 +1,7 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Res } from '@nestjs/common';
+import type { Response } from 'express';
 import { WeatherService } from './weather.service';
 import { CreateWeatherDto } from './dto/create-weather.dto';
-import { UpdateWeatherDto } from './dto/update-weather.dto';
 
 @Controller('weather')
 export class WeatherController {
@@ -17,18 +17,12 @@ export class WeatherController {
     return this.weatherService.findAll();
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.weatherService.findOne(+id);
-  }
+  @Get('export')
+  async export(@Res() res: Response) {
+    const csv = await this.weatherService.exportToCsv();
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateWeatherDto: UpdateWeatherDto) {
-    return this.weatherService.update(+id, updateWeatherDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.weatherService.remove(+id);
+    res.header('Content-Type', 'text/csv');
+    res.header('Content-Disposition', 'attachment; filename=clima_log.csv');
+    return res.send(csv);
   }
 }

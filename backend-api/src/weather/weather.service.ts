@@ -1,26 +1,42 @@
 import { Injectable } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { Parser } from 'json2csv';
 import { CreateWeatherDto } from './dto/create-weather.dto';
-import { UpdateWeatherDto } from './dto/update-weather.dto';
+import { Weather, WeatherDocument } from './entities/weather.entity';
 
 @Injectable()
 export class WeatherService {
-  create(createWeatherDto: CreateWeatherDto) {
-    return 'This action adds a new weather';
+  constructor(
+    @InjectModel(Weather.name) private weatherModel: Model<WeatherDocument>,
+  ) {}
+
+  async create(createWeatherDto: CreateWeatherDto) {
+    const createdWeather = new this.weatherModel(createWeatherDto);
+    return createdWeather.save();
   }
 
-  findAll() {
-    return `This action returns all weather`;
+  async findAll() {
+    return this.weatherModel.find().sort({ createdAt: -1 }).limit(100).exec();
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} weather`;
-  }
+  async exportToCsv() {
+  
+    const data: any = await this.weatherModel
+      .find()
+      .sort({ createdAt: -1 })
+      .limit(500)
+      .exec();
+    const fields = ['timestamp', 'temperature', 'humidity', 'windSpeed'];
+    const opts = { fields };
 
-  update(id: number, updateWeatherDto: UpdateWeatherDto) {
-    return `This action updates a #${id} weather`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} weather`;
+    try {
+      // O 'any' no Parser evita erros de lint sobre construtor inseguro
+      const parser = new Parser(opts);
+      return parser.parse(data);
+    } catch (err) {
+      console.error(err);
+      throw new Error('Erro ao gerar CSV');
+    }
   }
 }

@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-
+  # --- INFRAESTRUTURA ---
   rabbitmq:
     image: rabbitmq:3-management
     container_name: gdash-rabbitmq
@@ -9,17 +9,16 @@ services:
       - "5672:5672"
       - "15672:15672"
     environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin123
     networks:
       - gdash-network
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
-      interval: 30s
-      timeout: 10s
+      interval: 10s
+      timeout: 5s
       retries: 5
 
-  # Base de Dados
   mongodb:
     image: mongo:latest
     container_name: gdash-mongo
@@ -27,10 +26,66 @@ services:
     ports:
       - "27017:27017"
     environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASS}
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: root123
     volumes:
       - mongo_data:/data/db
+    networks:
+      - gdash-network
+
+  # --- APLICAÇÕES ---
+  
+  # Backend
+  backend:
+    build: ./backend-api
+    container_name: gdash-backend
+    ports:
+      - "3000:3000"
+    environment:
+
+      # Define banco 'mongodb'
+      MONGO_HOST: mongodb
+    depends_on:
+      - mongodb
+    networks:
+      - gdash-network
+
+  # Frontend
+  frontend:
+    build: ./frontend-dash
+    container_name: gdash-frontend
+    ports:
+      - "5173:80" 
+    depends_on:
+      - backend
+    networks:
+      - gdash-network
+
+  # Worker (Go)
+  worker:
+    build: ./queue-worker
+    container_name: gdash-worker
+    environment:
+      RABBITMQ_URL: amqp://admin:admin123@rabbitmq:5672/
+      # IMPORTANTE: Define onde está a API (http://nome-do-servico:porta/rota)
+      API_URL: http://backend:3000/weather
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      backend: # Garante que a API sobe antes do Worker
+        condition: service_started
+    networks:
+      - gdash-network
+
+  # Coletor (Python)
+  collector:
+    build: ./weather-collector
+    container_name: gdash-collector
+    environment:
+      RABBITMQ_HOST: rabbitmq
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
     networks:
       - gdash-network
 
