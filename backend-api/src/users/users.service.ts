@@ -46,8 +46,7 @@ export class UsersService implements OnModuleInit {
     return this.userModel.findById(id).exec();
   }
 
-  // 4. Buscar por Email (Para o Login)
-  // Removemos a tipagem explicita para o TS não reclamar de 'null'
+  // 4. Buscar por Email (Para o Login) 
   async findOneByEmail(email: string) {
     return this.userModel.findOne({ email }).exec();
   }

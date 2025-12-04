@@ -1,97 +1,97 @@
-version: '3.8'
+version: '3.8'   
 
 services:
   # --- INFRAESTRUTURA ---
+  
   rabbitmq:
-    image: rabbitmq:3-management
+    image: rabbitmq:3-management   
     container_name: gdash-rabbitmq
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - "5672:5672"    # Porta padrão para comunicação AMQP
+      - "15672:15672"  # Porta do painel de administração (dashboard)
     environment:
-      RABBITMQ_DEFAULT_USER: admin
-      RABBITMQ_DEFAULT_PASS: admin123
+      RABBITMQ_DEFAULT_USER: admin      
+      RABBITMQ_DEFAULT_PASS: admin123  
     networks:
       - gdash-network
-    healthcheck:
+    healthcheck:             
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
 
   mongodb:
-    image: mongo:latest
-    container_name: gdash-mongo
-    restart: always
+    image: mongo:latest           
+    container_name: gdash-mongo                
+    restart: always              
     ports:
-      - "27017:27017"
+      - "27017:27017"             
     environment:
-      MONGO_INITDB_ROOT_USERNAME: root
-      MONGO_INITDB_ROOT_PASSWORD: root123
+      MONGO_INITDB_ROOT_USERNAME: root     
+      MONGO_INITDB_ROOT_PASSWORD: root123  
     volumes:
-      - mongo_data:/data/db
+      - mongo_data:/data/db      
     networks:
       - gdash-network
 
   # --- APLICAÇÕES ---
   
-  # Backend
+  # Backend Node.js
   backend:
-    build: ./backend-api
+    build: ./backend-api         
     container_name: gdash-backend
     ports:
-      - "3000:3000"
+      - "3000:3000"           
     environment:
-
-      # Define banco 'mongodb'
-      MONGO_HOST: mongodb
+      MONGO_HOST: mongodb        
     depends_on:
-      - mongodb
+      - mongodb                   
     networks:
       - gdash-network
 
-  # Frontend
+  # Frontend (React)
   frontend:
-    build: ./frontend-dash
+    build: ./frontend-dash        
     container_name: gdash-frontend
     ports:
-      - "5173:80" 
+      - "5173:80"                
     depends_on:
-      - backend
+      - backend                  
     networks:
       - gdash-network
 
-  # Worker (Go)
+  # Worker (Go) — consome mensagens da fila
   worker:
-    build: ./queue-worker
+    build: ./queue-worker         
     container_name: gdash-worker
     environment:
-      RABBITMQ_URL: amqp://admin:admin123@rabbitmq:5672/
-      # IMPORTANTE: Define onde está a API (http://nome-do-servico:porta/rota)
-      API_URL: http://backend:3000/weather
+      RABBITMQ_URL: amqp://admin:admin123@rabbitmq:5672/   
+      API_URL: http://backend:3000/weather   
     depends_on:
-      rabbitmq:
+      rabbitmq:             
         condition: service_healthy
-      backend: # Garante que a API sobe antes do Worker
+      backend:                  
         condition: service_started
     networks:
       - gdash-network
 
-  # Coletor (Python)
+  # Coletor (Python) — coleta dados e envia para a fila
   collector:
-    build: ./weather-collector
+    build: ./weather-collector    
     container_name: gdash-collector
     environment:
-      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_HOST: rabbitmq     
     depends_on:
-      rabbitmq:
+      rabbitmq: 
         condition: service_healthy
     networks:
       - gdash-network
 
+
 networks:
   gdash-network:
     driver: bridge
+
 
 volumes:
   mongo_data:

@@ -10,6 +10,8 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Login } from "@/components/Login";
+import { Pokedex } from "@/components/Pokedex";
+import { Users } from "@/components/Users";
 
 interface WeatherData {
   _id: string;
@@ -60,7 +62,6 @@ function App() {
 
   const current = weatherList[0];
 
-  // --- FUNÇÃO: GERA O INSIGHT DA IA ---
   const getInsight = (temp: number, humidity: number) => {
     if (temp > 30) return "🔥 Alerta de Calor: Hidrate-se e evite sol direto.";
     if (temp < 15) return "❄️ Frente Fria: Recomenda-se uso de agasalhos térmicos.";
@@ -86,7 +87,7 @@ function App() {
       <div className="max-w-6xl mx-auto space-y-8">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold text-white">GDASH Tempo🌤️</h1>
+            <h1 className="text-3xl font-bold text-white">GDASH Weather 🌤️</h1>
             <p className="text-zinc-400">Monitoramento Seguro (Admin)</p>
           </div>
           <div className="flex gap-2">
@@ -98,6 +99,12 @@ function App() {
               Atualizar
             </Button>
 
+            <Pokedex />
+
+            {/* --- BOTÃO DE USUÁRIOS (CADASTRO/CRUD) --- */}
+            <Users />
+            {/* ------------------------------------- */}
+            
             <Button
               onClick={() =>
                 window.open("http://localhost:3000/weather/export", "_blank")
@@ -119,7 +126,6 @@ function App() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Cards de Dados */}
             <Card className="bg-zinc-900 border-zinc-800 text-white">
               <CardHeader>
                 <CardTitle className="text-sm font-medium text-zinc-400">
@@ -159,7 +165,6 @@ function App() {
               </CardContent>
             </Card>
 
-            {/* --- NOVO CARD DE INSIGHT (Ocupa as 3 colunas) --- */}
             <Card className="bg-zinc-900 border-zinc-800 text-white md:col-span-3 border-l-4 border-l-purple-500">
               <CardHeader>
                 <CardTitle className="text-sm font-medium text-purple-400 flex items-center gap-2">
