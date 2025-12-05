@@ -25,7 +25,7 @@ export class UsersService implements OnModuleInit {
     }
   }
 
-  // 2. Criar novo usuário (Hash na senha)
+  // 2. Criar novo usuário
   async create(createUserDto: CreateUserDto) {
     const salt = await bcrypt.genSalt();
     const hash = await bcrypt.hash(createUserDto.password, salt);
@@ -41,24 +41,24 @@ export class UsersService implements OnModuleInit {
     return this.userModel.find().exec();
   }
 
-  // 3. Buscar por ID (Mongo usa String)
+  // 3. Buscar por ID
   findOne(id: string) {
     return this.userModel.findById(id).exec();
   }
 
-  // 4. Buscar por Email (Para o Login) 
+  // 4. Buscar por Email
   async findOneByEmail(email: string) {
     return this.userModel.findOne({ email }).exec();
   }
 
-  // 5. Update (Faltava este método!)
+  // 5. Update
   update(id: string, updateUserDto: UpdateUserDto) {
     return this.userModel
       .findByIdAndUpdate(id, updateUserDto, { new: true })
       .exec();
   }
 
-  // 6. Remove (Faltava este método!)
+  // 6. Remove
   remove(id: string) {
     return this.userModel.findByIdAndDelete(id).exec();
   }

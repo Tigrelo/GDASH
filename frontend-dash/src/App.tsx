@@ -101,9 +101,9 @@ function App() {
 
             <Pokedex />
 
-            {/* --- BOTÃO DE USUÁRIOS (CADASTRO/CRUD) --- */}
+            {/*BOTÃO CADASTRO */}
             <Users />
-            {/* ------------------------------------- */}
+            {/* ------------ */}
             
             <Button
               onClick={() =>

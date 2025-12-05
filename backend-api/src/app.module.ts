@@ -7,7 +7,6 @@ import { UsersModule } from "./users/users.module";
 import { AuthModule } from "./auth/auth.module";
 import { PokemonModule } from "./pokemon/pokemon.module";
 
-// LÓGICA INTELIGENTE:
 
 const mongoHost = process.env.MONGO_HOST || "localhost";
 

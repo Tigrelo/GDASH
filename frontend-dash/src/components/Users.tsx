@@ -63,7 +63,7 @@ export function Users() {
     }
   };
 
-  // --- LÓGICA DE UPDATE (PATCH) ---
+  // --- (PATCH) ---
   const handleUpdate = async () => {
     if (!editingUser || !editingUser.email) return;
 
@@ -83,7 +83,7 @@ export function Users() {
   };
 
 
-  // --- LÓGICA DE DELETE ---
+  // --- DELETE ---
   const handleDelete = async (id: string) => {
     if (!confirm("Tem certeza que deseja excluir este usuário?")) return;
 
@@ -114,7 +114,7 @@ export function Users() {
           <DialogTitle>Gestão de Usuários (CRUD)</DialogTitle>
         </DialogHeader>
         
-        {/* Formulário de Cadastro (CREATE) */}
+        {/* (CREATE) */}
         <div className="flex gap-2 my-4 p-4 bg-zinc-950 rounded-lg border border-zinc-800">
           <Input 
             placeholder="Email" 
@@ -134,7 +134,7 @@ export function Users() {
           </Button>
         </div>
 
-        {/* Lista de Usuários (READ & DELETE/UPDATE) */}
+        {/* (READ & DELETE/UPDATE) */}
         <div className="max-h-[300px] overflow-y-auto">
           <Table>
             <TableHeader>
@@ -150,7 +150,7 @@ export function Users() {
                   <TableCell className="font-mono text-xs text-zinc-500">{user._id}</TableCell>
                   <TableCell>{user.email}</TableCell>
                   <TableCell className="text-right flex justify-end gap-2">
-                    {/* Botão EDITAR (UPDATE) */}
+                    {/* Botão EDITAR */}
                     <Button 
                       onClick={() => {
                         setEditingUser(user); // Carrega o usuário
@@ -162,7 +162,7 @@ export function Users() {
                     >
                       <Pencil1Icon />
                     </Button>
-                    {/* Botão DELETAR (DELETE) */}
+                    {/* Botão DELETAR */}
                     <Button 
                       onClick={() => handleDelete(user._id)} 
                       variant="ghost" 

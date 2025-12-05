@@ -10,7 +10,6 @@ export class PokemonService {
     const limit = 20;
     const offset = (page - 1) * limit;
 
-    // ADICIONEI 'as any' PARA O TYPESCRIPT NÃO RECLAMAR
     const response: any = await firstValueFrom(
       this.httpService.get(
         `https://pokeapi.co/api/v2/pokemon?offset=${offset}&limit=${limit}`
@@ -26,7 +25,6 @@ export class PokemonService {
   }
 
   async findOne(name: string) {
-    // ADICIONEI 'as any' AQUI TAMBÉM
     const response: any = await firstValueFrom(
       this.httpService.get(`https://pokeapi.co/api/v2/pokemon/${name}`)
     );
