@@ -16,9 +16,6 @@ Você deverá construir um sistema que:
    - **Exportação de dados** em **CSV/XLSX**;  
 7. Toda a solução deve rodar via **Docker Compose**.
 
-> ⚙️ **Observação importante:**  
-> Os nomes de **endpoints, coleções, entidades, variáveis, bibliotecas e estruturas** usados neste documento são **apenas exemplos ilustrativos**.  
-> Você pode (e deve) adotar as convenções e estruturas que considerar mais adequadas, desde que a **funcionalidade final** seja mantida.
 
 ---
 
